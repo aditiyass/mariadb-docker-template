@@ -1,0 +1,50 @@
+version: '3'
+
+services:
+
+  db:
+    container_name: 'mariadb_server'
+    image: mariadb
+    restart: always
+    ports:
+      - ${MARIADB_PORT:-3306}:3306
+    environment:
+      - MARIADB_DATABASE=${MARIADB_DATABASE:-defaultdbadata}
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD:-defaultroot}
+      - MARIADB_USER=${MARIADB_USER:-defaultuser}
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD:-defaultpassword}
+      - MARIADB_ROOT_HOST=${MARIADB_ROOT_HOST:-%}
+    volumes:
+      - ${MARIADB_DATA_DIR:-./data}:/var/lib/mysql
+      - ${MARIADB_INIT_SQL:-./sql}:/docker-entrypoint-initdb.d
+    networks:
+      mariadbproxy :
+        ipv4_address: ${MARIADB_IP_PROXY_IPV4:-10.5.5.5}
+      mariadbinternal :
+
+  phpmyadmin:
+    container_name: 'mariadb_server_phpmyadmin'
+    image: phpmyadmin/phpmyadmin:latest
+    restart: always
+    ports:
+      - 8000:80
+    environment:
+      - PMA_ARBITRARY=0
+      - PMA_HOST=db
+      - PMA_USER=root
+      - PMA_PASSWORD=${MARIADB_ROOT_PASSWORD:-defaultroot}
+    depends_on:
+      - db
+    networks:
+      - mariadbinternal
+
+networks:
+  mariadbproxy:
+    name: ${MARIADB_IP_PROXY_NETWORK_NAME:-mariadbnet}
+    ipam:
+      driver: default
+      config:
+        - subnet: ${MARIADB_IP_PROXY_SUBNET:-10.5.5.0/24}
+          gateway: ${MARIADB_IP_PROXY_GATEWAY:-10.5.5.1}
+  mariadbinternal:
+    name: mariadbinternalconnection
